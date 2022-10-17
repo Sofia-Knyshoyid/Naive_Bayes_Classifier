@@ -184,10 +184,13 @@ tidy_text_true <- unnest_tokens(data_true, 'splitted', 'Body', token="words")%>%
              filter(!splitted %in% splitted_stop_words)
 fake <- tidy_text_fake %>% count(splitted,sort=TRUE)
 true <- tidy_text_true %>% count(splitted,sort=TRUE)
-new_data <- merge(x = fake, y = true, by="splitted", all = TRUE)
-fake %>% full_join(true, by"splitted")
-new_data
+new_data <- fake %>% full_join(true, by="splitted")
 new_data[is.na(new_data)] <- 0
+num_col = nrow(new_data)
+fake_sum <- sum(new_data$n.x)
+true_sum <- sum(new_data$n.y)
+new_data$prob_fake <- (new_data$n.x+1)/(num_col+fake_sum)
+new_data$prob_true <- (new_data$n.y+1)/(num_col+true_sum)
 new_data
 
 #fit(column1, column2)
@@ -206,22 +209,21 @@ naiveBayes <- setRefClass("naiveBayes",
                     # (binary classification task)
                     fit = function(data)
                     {
-                         #data = merge(x = X, y = y, by = NULL)
-                      tidy_text_fake <- unnest_tokens(data_fake, 'splitted', 'Body', token="words")%>%
-                                                     filter(!splitted %in% splitted_stop_words)
-                      tidy_text_true <- unnest_tokens(data_true, 'splitted', 'Body', token="words")%>%
-                                             filter(!splitted %in% splitted_stop_words)
-                      fake <- tidy_text_fake %>% count(splitted,sort=TRUE)
-                      true <- tidy_text_true %>% count(splitted,sort=TRUE)
-                         #data_fake <- data[data$Label == 'fake',]
-                         #data_true <- data[data$Label == 'credible',]
-                         #tidy_text_fake <- unnest_tokens(data_fake, 'splitted', 'Body', token="words")%>%
-             #filter(!splitted %in% splitted_stop_words)
-                         #tidy_text_true <- unnest_tokens(data_true, 'splitted', 'Body', token="words")%>%
-             #filter(!splitted %in% splitted_stop_words)
-                         #tidy_text_fake %>% count(splitted,sort=TRUE)
-                         #tidy_text_true %>% count(splitted,sort=TRUE)
-                         
+                         data_fake <- train[train$Label == "fake",]
+                         data_true <- train[train$Label == "credible",]
+                         tidy_text_fake <- unnest_tokens(data_fake, 'splitted', 'Body', token="words")%>%
+                                           filter(!splitted %in% splitted_stop_words)
+                         tidy_text_true <- unnest_tokens(data_true, 'splitted', 'Body', token="words")%>%
+                                           filter(!splitted %in% splitted_stop_words)
+                         fake <- tidy_text_fake %>% count(splitted,sort=TRUE)
+                         true <- tidy_text_true %>% count(splitted,sort=TRUE)
+                         new_data <- fake %>% full_join(true, by="splitted")
+                         new_data[is.na(new_data)] <- 0
+                         num_col = nrow(new_data)
+                         fake_sum <- sum(new_data$n.x)
+                         true_sum <- sum(new_data$n.y)
+                         new_data$prob_fake <- (new_data$n.x+1)/(num_col+fake_sum)
+                         new_data$prob_true <- (new_data$n.y+1)/(num_col+true_sum)
                     },
                     
                     # return prediction for a single message 
