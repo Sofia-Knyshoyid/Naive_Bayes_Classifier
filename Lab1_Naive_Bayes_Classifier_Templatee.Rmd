@@ -59,7 +59,7 @@ on cms and take *mod 5* - this is the number of your data set.
 
 -   **2 - fake news** This data set contains data of American news: a
     headline and an abstract of the article. Each piece of news is
-    classified as fake or  credible. The task is to classify the news
+    classified as fake or credible. The task is to classify the news
     from test.csv as credible or fake.
 
 -   **3 - sentiment** All the text messages contained in this data set
@@ -82,7 +82,6 @@ classifier works.
 library(tidytext)
 library(readr)
 library(dplyr)
-library(ggplot2)
 ```
 
 ## Instructions
@@ -102,9 +101,9 @@ library(ggplot2)
 
 -   shortly summarize your work
 
--   do not forget to submit both the (compiled) Rmd source file and the .html
-    output
-    
+-   do not forget to submit both the (compiled) Rmd source file and the
+    .html output
+
 ### Data pre-processing
 
 -   Read the *.csv* data files.
@@ -129,31 +128,37 @@ library(ggplot2)
 
 ```{r}
 list.files(getwd())
-list.files("data/2-fakeNews")
+list.files("C:/Users/TETYANA/Downloads/data/2-fake_news")
 ```
 
 ```{r}
-test_path <- "data/2-fakeNews/test.csv"
-train_path <- "data/2-fakeNews/train.csv"
+test_path <- "C:/Users/TETYANA/Downloads/data/2-fake_news/test.csv"
 
 stop_words <- read_file("stop_words.txt")
-# https://stackoverflow.com/questions/27195912/why-does-strsplit-return-a-list
 splitted_stop_words <- strsplit(stop_words, split='\n')
 splitted_stop_words <- splitted_stop_words[[1]]
-splitted_stop_words
 ```
 
 ```{r}
-train <-  read.csv(file = train_path, stringsAsFactors = FALSE)
-test <-  read.csv(file = test_path, stringsAsFactors = FALSE)
+train <-  read.csv(file = "train.csv", stringsAsFactors = FALSE)
+head(train)
+
 ```
 
 ```{r}
 # note the power functional features of R bring us! 
-tidy_text <- unnest_tokens(train, 'splitted', 'text', token="words") %>%
-             filter(!splitted %in% stop_words)
+
+#new_text <- train[train$Label == 'fake', ][1]
+new_text <- head(train, 1)
+tidy_text <- unnest_tokens(new_text, 'splitted', 'Body', token="words")%>%
+             filter(!splitted %in% splitted_stop_words)
 
 tidy_text %>% count(splitted,sort=TRUE)
+#text <- some[some$splitted == 'said',][1, 2]
+```
+```{r}
+unnest_tokens(train, 'splitted', 'Body', token="words")%>%
+             filter(!splitted %in% splitted_stop_words)
 ```
 
 ### Data visualization
@@ -164,6 +169,30 @@ visualization. Show what are the most common words for negative and
 positive examples as a histogram, word cloud etc. Be creative!
 
 ## Classifier implementation
+```{r}
+#column1 <- data.frame(train$Body)
+#column2 <- data.frame(train$Label)
+#new_data = merge(x = column1, y = column2, by = NULL)
+data_fake <- train[train$Label == "fake",]
+data_true <- train[train$Label == "credible",]
+```
+
+```{r}
+tidy_text_fake <- unnest_tokens(data_fake, 'splitted', 'Body', token="words")%>%
+        filter(!splitted %in% splitted_stop_words)
+tidy_text_true <- unnest_tokens(data_true, 'splitted', 'Body', token="words")%>%
+             filter(!splitted %in% splitted_stop_words)
+fake <- tidy_text_fake %>% count(splitted,sort=TRUE)
+true <- tidy_text_true %>% count(splitted,sort=TRUE)
+new_data <- merge(x = fake, y = true, by="splitted", all = TRUE)
+fake %>% full_join(true, by"splitted")
+new_data
+new_data[is.na(new_data)] <- 0
+new_data
+
+#fit(column1, column2)
+
+```
 
 ```{r}
 naiveBayes <- setRefClass("naiveBayes",
@@ -175,9 +204,24 @@ naiveBayes <- setRefClass("naiveBayes",
                     # prepare your training data as X - bag of words for each of your
                     # messages and corresponding label for the message encoded as 0 or 1 
                     # (binary classification task)
-                    fit = function(X, y)
+                    fit = function(data)
                     {
-                         # TODO
+                         #data = merge(x = X, y = y, by = NULL)
+                      tidy_text_fake <- unnest_tokens(data_fake, 'splitted', 'Body', token="words")%>%
+                                                     filter(!splitted %in% splitted_stop_words)
+                      tidy_text_true <- unnest_tokens(data_true, 'splitted', 'Body', token="words")%>%
+                                             filter(!splitted %in% splitted_stop_words)
+                      fake <- tidy_text_fake %>% count(splitted,sort=TRUE)
+                      true <- tidy_text_true %>% count(splitted,sort=TRUE)
+                         #data_fake <- data[data$Label == 'fake',]
+                         #data_true <- data[data$Label == 'credible',]
+                         #tidy_text_fake <- unnest_tokens(data_fake, 'splitted', 'Body', token="words")%>%
+             #filter(!splitted %in% splitted_stop_words)
+                         #tidy_text_true <- unnest_tokens(data_true, 'splitted', 'Body', token="words")%>%
+             #filter(!splitted %in% splitted_stop_words)
+                         #tidy_text_fake %>% count(splitted,sort=TRUE)
+                         #tidy_text_true %>% count(splitted,sort=TRUE)
+                         
                     },
                     
                     # return prediction for a single message 
@@ -202,6 +246,7 @@ model$fit()
 ```
 
 ## Measure effectiveness of your classifier
+
 -   Note that accuracy is not always a good metric for your classifier.
     Look at precision and recall curves, F1 score metric.
 -   Visualize them.
