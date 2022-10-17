@@ -59,7 +59,7 @@ on cms and take *mod 5* - this is the number of your data set.
 
 -   **2 - fake news** This data set contains data of American news: a
     headline and an abstract of the article. Each piece of news is
-    classified as fake or credible. The task is to classify the news
+    classified as fake or  credible. The task is to classify the news
     from test.csv as credible or fake.
 
 -   **3 - sentiment** All the text messages contained in this data set
@@ -102,9 +102,9 @@ library(ggplot2)
 
 -   shortly summarize your work
 
--   do not forget to submit both the (compiled) Rmd source file and the
-    .html output
-
+-   do not forget to submit both the (compiled) Rmd source file and the .html
+    output
+    
 ### Data pre-processing
 
 -   Read the *.csv* data files.
@@ -129,21 +129,23 @@ library(ggplot2)
 
 ```{r}
 list.files(getwd())
-list.files("data/0-authors")
+list.files("data/2-fakeNews")
 ```
 
 ```{r}
-test_path <- "C:/Users/TETYANA/Downloads/data/2-fake_news/test.csv"
+test_path <- "data/2-fakeNews/test.csv"
+train_path <- "data/2-fakeNews/train.csv"
 
 stop_words <- read_file("stop_words.txt")
+# https://stackoverflow.com/questions/27195912/why-does-strsplit-return-a-list
 splitted_stop_words <- strsplit(stop_words, split='\n')
 splitted_stop_words <- splitted_stop_words[[1]]
+splitted_stop_words
 ```
 
 ```{r}
-train <-  read.csv(file = "train.csv", stringsAsFactors = FALSE)
-head(train)
-
+train <-  read.csv(file = train_path, stringsAsFactors = FALSE)
+test <-  read.csv(file = test_path, stringsAsFactors = FALSE)
 ```
 
 ```{r}
@@ -200,7 +202,6 @@ model$fit()
 ```
 
 ## Measure effectiveness of your classifier
-
 -   Note that accuracy is not always a good metric for your classifier.
     Look at precision and recall curves, F1 score metric.
 -   Visualize them.
