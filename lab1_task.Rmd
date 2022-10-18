@@ -61,6 +61,9 @@ classifier works.
 library(tidytext)
 library(readr)
 library(dplyr)
+library(RColorBrewer)
+library(wordcloud)
+library(wordcloud2)
 ```
 
 ## Instructions
@@ -108,6 +111,12 @@ library(dplyr)
 ```{r}
 list.files(getwd())
 list.files("/data/2-fake_news")
+test_path <- "/data/2-fake_news/test.csv"
+stop_words <- read_file("stop_words.txt")
+splitted_stop_words <- strsplit(stop_words, split='\n')
+splitted_stop_words <- splitted_stop_words[[1]]
+train <-  read.csv(file = "train.csv", stringsAsFactors = FALSE)
+test <- read.csv(file = "test.csv", stringsAsFactors = FALSE)
 ```
 
 ```{r}
@@ -136,6 +145,27 @@ naiveBayes <- setRefClass("naiveBayes",
                       new_data$probFake <- (new_data$numFake+1)/fake_stabilizer
                       new_data$probCred <- (new_data$numCred+1)/cred_stabilizer
                       all_data <<- new_data
+                      
+                      #visualisation
+                      fit_dataset <- new_data
+                      graph_d <- fit_dataset
+                      colnames(graph_d)[1] <- 'word'
+                      graph_d$freq <- graph_d$numFake + graph_d$numCred
+                      graph_d <- graph_d %>% select(-(numFake:probCred))
+                      print(graph_d)
+                      # option 1
+                      # - for all words we get
+                      wordcloud2(graph_d, color = "random-light", backgroundColor = "grey", widgetsize = c(1000,1000))
+                      # - only for fake words we get
+                      graph_d$freq <- fit_dataset$numFake
+                      print(graph_d)
+                      wordcloud2(graph_d, color = "random-light", backgroundColor = "grey", widgetsize = c(1000,1000))
+                      # - only for true words we get
+                      graph_d$freq <- fit_dataset$numCred
+                      print(graph_d)
+                      wordcloud2(graph_d, color = "random-light", backgroundColor = "grey", widgetsize = c(1000,1000))
+                      
+                      
                     },
                     
                     # return prediction for a single message 
@@ -199,7 +229,6 @@ naiveBayes <- setRefClass("naiveBayes",
 model = naiveBayes()
 model$fit(train)
 dataf <- model$score(test)
-dataf
 ```
 
 ```{r}
