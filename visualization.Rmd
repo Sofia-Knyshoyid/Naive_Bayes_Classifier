@@ -1,0 +1,58 @@
+---
+title: "visualization"
+---
+
+
+## Visualizing data
+
+```{r}
+train_path <- "train.csv"
+train <-read.csv(file = train_path, stringsAsFactors = FALSE)
+
+library(wordcloud)
+library(RColorBrewer)
+library(wordcloud2)
+
+# prepare data for visualization
+data_fake <- train[train$Label == "fake",]
+data_true <- train[train$Label == "credible",]
+tidy_text_fake <- unnest_tokens(data_fake, 'splitted', 'Body', token="words") %>% filter(!splitted %in% splitted_stop_words)
+tidy_text_true <- unnest_tokens(data_true, 'splitted', 'Body', token="words") %>% filter(!splitted %in% splitted_stop_words)
+fake <- tidy_text_fake %>% count(splitted,sort=TRUE)
+true <- tidy_text_true %>% count(splitted,sort=TRUE)
+new_data <- fake %>% full_join(true, by="splitted")
+new_data[is.na(new_data)] <- 0
+num_col = nrow(new_data)
+fake_sum <- sum(new_data$n.x)
+true_sum <- sum(new_data$n.y)
+new_data$prob_fake <- (new_data$n.x+1)/(num_col+fake_sum)
+new_data$prob_true <- (new_data$n.y+1)/(num_col+true_sum)
+fit_dataset <- new_data
+
+
+print(fit_dataset)
+graph_d <- fit_dataset
+colnames(graph_d)[1] <- 'word'
+graph_d$freq <- graph_d$n.x + graph_d$n.y
+graph_d <- graph_d %>% select(-(n.x:prob_true))
+print(graph_d)
+# option 1
+# - for all words we get
+wordcloud2(graph_d, color = "random-light", backgroundColor = "grey", widgetsize = c(1000,1000))
+# - only for fake words we get
+graph_d$freq <- fit_dataset$n.x
+print(graph_d)
+wordcloud2(graph_d, color = "random-light", backgroundColor = "grey", widgetsize = c(1000,1000))
+# - only for true words we get
+graph_d$freq <- fit_dataset$n.y
+print(graph_d)
+wordcloud2(graph_d, color = "random-light", backgroundColor = "grey", widgetsize = c(1000,1000))
+
+
+# option 2
+# as an example, for fake words we get
+set.seed(1000)
+wordcloud(words = fit_dataset$splitted, freq = fit_dataset$n.x, min.freq = 20, max.words=250, random.order=FALSE, rot.per=0.15, colors=brewer.pal(8, "Dark2"))
+
+
+```
