@@ -227,10 +227,41 @@ naiveBayes <- setRefClass("naiveBayes",
                     },
                     
                     # return prediction for a single message 
-                    predict = function(message)
+              predict = function(message)
                     {
-                         # TODO
-                    },
+                      # clear and split message
+                      message <- gsub("[`[:punct:]]", '', message)
+                      message <- tolower(message)
+                      words = strsplit(message, " ")[[1]]
+                      words <- words[!words %in% splitted_stop_words]
+                      
+                      return(words)
+                      
+                      # get constant numbers
+                      total_fake_prob = total_number_of_fakes/total_number_of_new
+                      total_cred_prob = 1 - total_fake_prob
+                      
+                      fake_stabilizer = sum(alldata$fakeNum) + nrows(alldata)
+                      cred_stabilizer = sum(alldata$credNum) + nrows(alldata)
+                      
+                      credToFakeRatio = total_number_of_fakes/total_number_of_creds
+                      
+                      for (word in words){
+                        
+                        if ((word %in% alldata$splitted) & (alldata$fakeNum[alldata&splitted== word]>0))
+                          credToFakeRatio = credToFakeRatio / data$fakeProb[data&splitted == word]
+                        else 
+                          credToFakeRatio = credToFakeRatio * fake_stabilizer
+                        
+                        if ((word %in% alldata$splitted) & (alldata$credNum[alldata&splitted== word]>0))
+                          credToFakeRatio = credToFakeRatio * data$credProb[which(data&splitted == word)]
+                        else
+                          credToFakeRatio = credToFakeRatio / cred_stabilizer
+                        
+                      }
+                      if (credToFakeRatio > 1){
+                        return(1)
+                        } else { return(0) },
                     
                     # score you test set so to get the understanding how well you model
                     # works.
