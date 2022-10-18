@@ -2,6 +2,9 @@
 editor_options:
   markdown:
     wrap: 72
+output:
+  html_document:
+    df_print: paged
 ---
 
 ```{r setup, include=FALSE}
@@ -12,7 +15,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Lab Assignment 1: Naive Bayes Classifier
 
-### *Name1 Surname1, Name2 Surname2, Name3 Surname3*
+### *Vinnik Tetiana, Sviatoslav Lushnei, Knishoid Sophia*
 
 ## Introduction
 
@@ -42,34 +45,10 @@ for more detailed explanations.
 
 ## Data description
 
-There are 5 datasets uploaded on the cms.
-
-To determine your variant, take your team number from the list of teams
-on cms and take *mod 5* - this is the number of your data set.
-
--   **0 - authors** This data set consists of citations of three famous
-    writers: Edgar Alan Poe, Mary Wollstonecraft Shelley and HP
-    Lovecraft. The task with this data set is to classify a piece of
-    text with the author who was more likely to write it.
-
--   **1 - discrimination** This data set consists of tweets that have
-    discriminatory (sexism or racism) messages or of tweets that are of
-    neutral mood. The task is to determine whether a given tweet has
-    discriminatory mood or does not.
-
 -   **2 - fake news** This data set contains data of American news: a
     headline and an abstract of the article. Each piece of news is
     classified as fake or credible. The task is to classify the news
     from test.csv as credible or fake.
-
--   **3 - sentiment** All the text messages contained in this data set
-    are labeled with three sentiments: positive, neutral or negative.
-    The task is to classify some text message as the one of positive
-    mood, negative or neutral.
-
--   **4 - spam** This last data set contains SMS messages classified as
-    spam or non-spam (ham in the data set). The task is to determine
-    whether a given message is spam or non-spam.
 
 Each data set consists of two files: *train.csv* and *test.csv*. The
 first one you will need find the probabilities distributions for each of
@@ -128,135 +107,14 @@ library(dplyr)
 
 ```{r}
 list.files(getwd())
-list.files("C:/Users/TETYANA/Downloads/data/2-fake_news")
-```
-
-```{r}
-test_path <- "C:/Users/TETYANA/Downloads/data/2-fake_news/test.csv"
-
-stop_words <- read_file("stop_words.txt")
-splitted_stop_words <- strsplit(stop_words, split='\n')
-splitted_stop_words <- splitted_stop_words[[1]]
-```
-
-```{r}
-train <-  read.csv(file = "train.csv", stringsAsFactors = FALSE)
-test <- read.csv(file = "test.csv", stringsAsFactors = FALSE)
-head(train)
-
-```
-
-```{r}
-# note the power functional features of R bring us! 
-
-#new_text <- train[train$Label == 'fake', ][1]
-new_text <- head(test, 1)
-tidy_text <- unnest_tokens(new_text, 'splitted', 'Body', token="words")%>%
-             filter(!splitted %in% splitted_stop_words)
-
-message<-tidy_text %>% count(splitted,sort=TRUE)
-#text <- some[some$splitted == 'said',][1, 2]
-```
-```{r}
-unnest_tokens(train, 'splitted', 'Body', token="words")%>%
-             filter(!splitted %in% splitted_stop_words)
-```
-
-### Data visualization
-
-Each time you work with some data, you need to understand it before you
-start processing it. R has very powerful tools to make nice plots and
-visualization. Show what are the most common words for negative and
-positive examples as a histogram, word cloud etc. Be creative!
-
-## Classifier implementation
-```{r}
-#column1 <- data.frame(train$Body)
-#column2 <- data.frame(train$Label)
-#new_data = merge(x = column1, y = column2, by = NULL)
-data_fake <- train[train$Label == "fake",]
-data_true <- train[train$Label == "credible",]
-```
-
-```{r}
-tidy_text_fake <- unnest_tokens(data_fake, 'splitted', 'Body', token="words")%>%
-        filter(!splitted %in% splitted_stop_words)
-tidy_text_true <- unnest_tokens(data_true, 'splitted', 'Body', token="words")%>%
-             filter(!splitted %in% splitted_stop_words)
-fake <- tidy_text_fake %>% count(splitted,sort=TRUE)
-true <- tidy_text_true %>% count(splitted,sort=TRUE)
-new_data <- fake %>% full_join(true, by="splitted")
-new_data[is.na(new_data)] <- 0
-num_col_fake = nrow(fake)
-colnames(fake) <- c("splitted", "numFake")
-num_col_true = nrow(true)
-colnames(true) <- c("splitted", "numCred")
-fake_sum <- sum(fake$numFake)
-true_sum <- sum(true$numCred)
-fake$probFake <- (fake$numFake+1)/(num_col_fake+fake_sum)
-true$probCred <- (true$numCred+1)/(num_col_true+true_sum)
-fake
-true
-
-#fit(column1, column2)
-
-```
-```{r}
-
-all_data <- new_data
-message <- head(test, 1)
-message <- message$Body
-
-message <- gsub("[`[:punct:]]", '', message)
-message <- tolower(message)
-words = strsplit(message, split = "[[:space:]]")[[1]]
-words <- words[!words %in% splitted_stop_words]
-                      
-                      # get constant numbers
-total_fake_prob = sum(new_data$numFake)/sum(new_data$numCred)
-total_cred_prob = 1 - total_fake_prob
-                      
-fake_stabilizer = sum(all_data$numFake) + nrow(new_data)
-cred_stabilizer = sum(all_data$numCred) + nrow(new_data)
-                      
-credToFakeRatio = sum(true$numCred)/sum(fake$numFake)
-
-                      
-for (word in words){
-    if (isTRUE(length(word))) {                    
-        if ((word %in% all_data$splitted) & (all_data$numFake[all_data$splitted== word]>0))
-            credToFakeRatio = credToFakeRatio / all_data$probFake[all_data$splitted == word]
-        else 
-            credToFakeRatio = credToFakeRatio * fake_stabilizer
-                        
-        if ((word %in% all_data$splitted) & (all_data$numCred[all_data$splitted== word]>0))
-            credToFakeRatio = credToFakeRatio * all_data$probCred[all_data$splitted == word]
-        else
-            credToFakeRatio = credToFakeRatio / cred_stabilizer
-    }
-                        
-}
-if (credToFakeRatio > 1){
-   print(1)
-} else { print(0) }
-```
-```{r}
-body_text <- subset(test, select=c("Body"))
-
-sum(test$Label=="credible")
-
+list.files("/data/2-fake_news")
 ```
 
 ```{r}
 naiveBayes <- setRefClass("naiveBayes",
-                          
-       # here it would be wise to have some vars to store intermediate result
-       # frequency dict etc. Though pay attention to bag of wards! 
        fields = list(all_data="data.frame", sum_fake="integer", sum_credible="integer", fake_stabilizer="numeric", cred_stabilizer="numeric"),
        methods = list(
-                    # prepare your training data as X - bag of words for each of your
-                    # messages and corresponding label for the message encoded as 0 or 1 
-                    # (binary classification task)
+         
                     fit = function(data)
                     {
                       data_fake <- train[train$Label == "fake",]
@@ -272,16 +130,11 @@ naiveBayes <- setRefClass("naiveBayes",
                       new_data <- fake %>% full_join(true, by="splitted")
                       new_data[is.na(new_data)] <- 0
                       num_col <- nrow(new_data)
-                      #colnames(fake) <- c("splitted", "numFake")
-                      #colnames(true) <- c("splitted", "numCred")
                       colnames(new_data) <- c("splitted", "numFake", "numCred")
                       fake_stabilizer <<- sum(new_data$numFake) + num_col
                       cred_stabilizer <<- sum(new_data$numCred) + num_col
                       new_data$probFake <- (new_data$numFake+1)/fake_stabilizer
                       new_data$probCred <- (new_data$numCred+1)/cred_stabilizer
-                      
-                      #data_fake <<- fake
-                      #data_true <<- true
                       all_data <<- new_data
                     },
                     
@@ -342,12 +195,9 @@ naiveBayes <- setRefClass("naiveBayes",
                       recall = tpr/(tpr+tnr)
                     }
 ))
-N=4
+
 model = naiveBayes()
 model$fit(train)
-#print(train$Label[N])
-#message <- train$Body[N]
-#model$predict(message)
 dataf <- model$score(test)
 dataf
 ```
@@ -368,16 +218,14 @@ recall = tpr/(tpr+fnr)
 f1score = 2*recall*precision/(recall+precision)
 head(test_data)
 
+print("Result accuracy:")
 print(accuracy)
+print("Result precision:")
 print(precision)
+print("Result recall:")
 print(recall)
+print("Result f1-score:")
 print(f1score)
-
-#print("Result accuracy:", accuracy)
-#print("Result precision:" + preciosion)
-#print("Result recall:" + recall)
-#print("Result f1-score:" + f1score)
-
 ```
 
 ## Measure effectiveness of your classifier
@@ -388,14 +236,15 @@ print(f1score)
 -   Show failure cases.
 
 ## Conclusions
-
-Summarize your work by explaining in a few sentences the points listed
-below.
-
--   Describe the method implemented in general. Show what are
-    mathematical foundations you are basing your solution on.
--   List pros and cons of the method. This should include the
-    limitations of your method, all the assumption you make about the
-    nature of your data etc.
     
-    To build NaiveClassifier we implemented fit (anylize train data and calculates conditional probabilities) predict(makes prediction on the inputted message by using Bayes Rules and probability table) and score(calculates results for the whole test base) methods.
+    To build NaiveClassifier we implemented fit (anylize train data and calculates conditional probabilities) predict(makes prediction on the inputted message by using        Bayes Rules and probability table) and score(calculates results for the whole test base) methods. 
+    
+    We can see that our model works really good on provided data (all measures are close to 0.96)
+    Pros:
+    It is easy to implement 
+    Is takes  `few minutes` to train the model.
+    It gives a good results in a short time.
+    
+    Cons:
+    It is naive and don`t takes into account many important factors.
+    We have too assume that data (words) are independent and have class distribution in general.
