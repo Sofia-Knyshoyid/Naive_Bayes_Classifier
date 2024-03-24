@@ -1,0 +1,456 @@
+---
+editor_options:
+  markdown:
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Probability and Statistics
+
+# Lab Assignment 1: Naive Bayes Classifier
+
+### *Name1 Surname1, Name2 Surname2, Name3 Surname3*
+
+## Introduction
+
+During the past three weeks, you learned a couple of essential notions
+and theorems, and one of the most important among them is the *Bayes
+theorem*.
+
+One of its applications is **Naive Bayes classifier**, which is a
+probabilistic classifier whose aim is to determine which class some
+observation probably belongs to by using the Bayes formula:
+$$\mathsf{P}(\mathrm{class}\mid \mathrm{observation})=\frac{\mathsf{P}(\mathrm{observation}\mid\mathrm{class})\mathsf{P}(\mathrm{class})}{\mathsf{P}(\mathrm{observation})}$$
+
+Under the strong independence assumption, one can calculate
+$\mathsf{P}(\mathrm{observation} \mid \mathrm{class})$ as
+$$\mathsf{P}(\mathrm{observation}) = \prod_{i=1}^{n} \mathsf{P}(\mathrm{feature}_i), \qquad \mathsf{P}(\mathrm{observation} \mid \mathrm{class}) = \prod_{i=1}^{n} \mathsf{P}(\mathrm{feature}_i \mid \mathrm{class}),$$
+where $n$ is the total number of features describing a given
+observation. Thus, $\mathsf{P}(\mathrm{class}|\mathrm{observation})$ now
+can be calculated as
+
+$$\mathsf{P}(\mathrm{class} \mid \mathrm{\mathrm{observation}}) = \mathsf{P}(\mathrm{class})\times \prod_{i=1}^{n}\frac{\mathsf{P}(\mathrm{feature}_i\mid \mathrm{class})}{\mathsf{P}(\mathrm{feature}_i)}\tag{1}$$
+
+All the terms on the right-hand side can be estimated from the data as
+respective relative frequencies;\
+see [this
+site](https://monkeylearn.com/blog/practical-explanation-naive-bayes-classifier/)
+for more detailed explanations.
+
+## Data description
+
+There are 5 datasets uploaded on the cms.
+
+To determine your variant, take your team number from the list of teams
+on cms and take *mod 5* - this is the number of your data set.
+
+-   **0 - authors** This data set consists of citations of three famous
+    writers: Edgar Alan Poe, Mary Wollstonecraft Shelley and HP
+    Lovecraft. The task with this data set is to classify a piece of
+    text with the author who was more likely to write it.
+
+-   **1 - discrimination** This data set consists of tweets that have
+    discriminatory (sexism or racism) messages or of tweets that are of
+    neutral mood. The task is to determine whether a given tweet has
+    discriminatory mood or does not.
+
+-   **2 - fake news** This data set contains data of American news: a
+    headline and an abstract of the article. Each piece of news is
+    classified as fake or credible. The task is to classify the news
+    from test.csv as credible or fake.
+
+-   **3 - sentiment** All the text messages contained in this data set
+    are labeled with three sentiments: positive, neutral or negative.
+    The task is to classify some text message as the one of positive
+    mood, negative or neutral.
+
+-   **4 - spam** This last data set contains SMS messages classified as
+    spam or non-spam (ham in the data set). The task is to determine
+    whether a given message is spam or non-spam.
+
+Each data set consists of two files: *train.csv* and *test.csv*. The
+first one you will need find the probabilities distributions for each of
+the features, while the second one is needed for checking how well your
+classifier works.
+
+```{r}
+# here goes a list of recommended libraries,
+# though you may install other ones if they are needed
+library(tidytext)
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(tm)
+library(wordcloud)
+library(RColorBrewer)
+library(wordcloud2)
+install.packages("magrittr")
+install.packages("dplyr")
+library(magrittr)
+library(dplyr)
+```
+
+## Instructions
+
+-   The first step is data pre-processing, which includes removing
+    punctuation marks and stop words
+
+-   represent each message as a bag-of-words
+
+-   using the training set, calculate all the conditional probabilities
+    in formula (1)
+
+-   use those to predict classes for messages in the test set
+
+-   evaluate effectiveness of the classifier by calculating the
+    corresponding metrics
+
+-   shortly summarize your work
+
+-   do not forget to submit both the (compiled) Rmd source file and the .html
+    output
+    
+### Data pre-processing
+
+-   Read the *.csv* data files.
+-   Сlear your data from punctuation or other unneeded symbols.
+-   Clear you data from stop words. You don't want words as is, and, or
+    etc. to affect your probabilities distributions, so it is a wise
+    decision to get rid of them. Find list of stop words in the cms
+    under the lab task.
+-   Represent each test message as its bag-of-words. Here:
+    <https://machinelearningmastery.com/gentle-introduction-bag-words-model/>
+    you can find general introduction to the bag-of-words model and
+    examples on to create it.
+-   It is highly recommended to get familiar with R dataframes, it would
+    make the work much easier to do.
+-   Useful links:
+    -   <https://steviep42.github.io/webscraping/book/bagofwords.html#tidytext> -
+        example of using *tidytext* to count frequencies of the words.
+    -   Basics of Text Mining in R:
+        <http://rstudio-pubs-static.s3.amazonaws.com/256588_57b585da6c054349825cba46685d8464.html>
+        . Note that it also includes an example on how to create a bag
+        of words from your text document.
+
+```{r}
+list.files(getwd())
+list.files("data/0-authors")
+```
+
+```{r}
+test_path <- "test.csv"
+train_path <- "train.csv"
+
+stop_words <- read_file("stop_words.txt")
+# https://stackoverflow.com/questions/27195912/why-does-strsplit-return-a-list
+splitted_stop_words <- strsplit(stop_words, split='\n')
+splitted_stop_words <- splitted_stop_words[[1]]
+```
+
+```{r}
+train <-  read.csv(file = train_path, stringsAsFactors = FALSE)
+test <-  read.csv(file = test_path, stringsAsFactors = FALSE)
+```
+
+```{r}
+# note the power functional features of R bring us! 
+tidy_text <- unnest_tokens(train, 'splitted', 'Body', token="words")
+#print(tidy_text)
+
+tidy_text <- tidy_text %>% filter(!splitted %in% splitted_stop_words)
+# now we have false+true for every meaningful word; need to split it to f and t
+
+#print(tidy_text)
+
+true_tidy <- tidy_text %>% filter(Label == "credible")
+print(true_tidy)
+
+false_tidy <- tidy_text %>% filter(Label == "fake")
+print(false_tidy)
+
+#print(splitted_stop_words)
+
+#tidy_text %>% count(splitted, sort=TRUE)
+true_tidy <- true_tidy %>% count(splitted, sort=TRUE)
+colnames(true_tidy)[1] <- 'splitted'
+colnames(true_tidy)[2] <- 'credible_num'
+print(true_tidy)
+
+
+false_tidy <- false_tidy %>% count(splitted, sort=TRUE)
+colnames(true_tidy)[1] <- 'splitted'
+colnames(true_tidy)[2] <- 'fake_num'
+print(false_tidy)
+
+total <- merge(true_tidy,false_tidy,by="splitted")
+print(total)
+
+```
+
+### Data visualization
+
+Each time you work with some data, you need to understand it before you
+start processing it. R has very powerful tools to make nice plots and
+visualization. Show what are the most common words for negative and
+positive examples as a histogram, word cloud etc. Be creative!
+
+## Classifier implementation
+
+
+
+
+```{r}
+naiveBayes <- setRefClass("naiveBayes",
+                          
+       # here it would be wise to have some vars to store intermediate result
+       # frequency dict etc. Though pay attention to bag of wards! 
+       fields = list(),
+       methods = list(
+                    # prepare your training data as X - bag of words for each of your
+                    # messages and corresponding label for the message encoded as 0 or 1 
+                    # (binary classification task)
+                    fit = function(data)
+                    {
+                         data_fake <- train[train$Label == "fake",]
+                         data_true <- train[train$Label == "credible",]
+                         tidy_text_fake <- unnest_tokens(data_fake, 'splitted', 'Body', token="words") %>% filter(!splitted %in% splitted_stop_words)
+                         tidy_text_true <- unnest_tokens(data_true, 'splitted', 'Body', token="words") %>% filter(!splitted %in% splitted_stop_words)
+                         fake <- tidy_text_fake %>% count(splitted,sort=TRUE)
+                         true <- tidy_text_true %>% count(splitted,sort=TRUE)
+                         new_data <- fake %>% full_join(true, by="splitted")
+                         new_data[is.na(new_data)] <- 0
+                         num_col = nrow(new_data)
+                         fake_sum <- sum(new_data$n.x)
+                         true_sum <- sum(new_data$n.y)
+                         new_data$prob_fake <- (new_data$n.x+1)/(num_col+fake_sum)
+                         new_data$prob_true <- (new_data$n.y+1)/(num_col+true_sum)
+                         
+                         print(new_data)
+                         return(new_data)
+                    },
+                    
+                    # return prediction for a single message 
+              predict = function(message)
+                    {
+                      # clear and split message
+                      message <- gsub("[`[:punct:]]", '', message)
+                      message <- tolower(message)
+                      words = strsplit(message, " ")[[1]]
+                      words <- words[!words %in% splitted_stop_words]
+                      
+                      return(words)
+                      
+                      # get constant numbers
+                      total_fake_prob = total_number_of_fakes/total_number_of_new
+                      total_cred_prob = 1 - total_fake_prob
+                      
+                      fake_stabilizer = sum(alldata$fakeNum) + nrows(alldata)
+                      cred_stabilizer = sum(alldata$credNum) + nrows(alldata)
+                      
+                      credToFakeRatio = total_number_of_fakes/total_number_of_creds
+                      
+                      for (word in words){
+                        
+                        if ((word %in% alldata$splitted) & (alldata$fakeNum[alldata&splitted== word]>0))
+                          credToFakeRatio = credToFakeRatio / data$fakeProb[data&splitted == word]
+                        else 
+                          credToFakeRatio = credToFakeRatio * fake_stabilizer
+                        
+                        if ((word %in% alldata$splitted) & (alldata$credNum[alldata&splitted== word]>0))
+                          credToFakeRatio = credToFakeRatio * data$credProb[which(data&splitted == word)]
+                        else
+                          credToFakeRatio = credToFakeRatio / cred_stabilizer
+                        
+                      }
+                      if (credToFakeRatio > 1){
+                        return(1)
+                        } else { return(0) }
+                      },
+                    
+                    # score you test set so to get the understanding how well you model
+                    # works.
+                    # look at f1 score or precision and recall
+                    # visualize them
+                    # try how well your model generalizes to real world data! 
+                    score = function(X_test, y_test)
+                    {
+                         # TODO
+                    }
+))
+
+model = naiveBayes()
+#model$fit()
+fit_dataset <- model$fit()
+```
+
+```{r}
+# score function
+# we get some dataframe (X_test, y_test)
+
+X_test_dataset <- head(tidy_text,30)[,2, drop=FALSE]
+y_test_dataset <- head(tidy_text,30)[,3, drop=FALSE]
+
+library(stringr)
+test_function <- function(message) {
+  #print(typeof(message))
+  #print(message)
+  #print("type")
+  if(str_detect(message, "Trump Is So Busy")){
+    #print(1)
+    return (TRUE)
+    
+  }
+  else{
+    #print(0)
+    return (FALSE)
+    
+  }
+  
+  #print(message)
+  
+  #return (nchar(message));
+}
+
+#merge two datasets into one
+
+print(X_test_dataset)
+print(y_test_dataset)
+
+#print(typeof(X_test_dataset))
+
+# uneffective
+#n_of_rows = nrow(X_test_dataset)
+#for (rowidx in 1:n_of_rows){
+#  X_test_dataset[rowidx,1] <- lapply(X_test_dataset[rowidx,], test_function)
+#}
+#print(X_test_dataset)
+
+
+#X_test_dataset['new_col'] <- NA
+print(X_test_dataset)
+
+print("testing..")
+test_function("Trump 123")
+print("tested")
+
+
+X_test_dataset$predicted_rusults <- test_function(X_test_dataset$Headline)
+print(X_test_dataset)
+
+X_test_dataset$real = y_test_dataset$Label == "credible"
+print(X_test_dataset)
+
+
+
+print("test 2.1")
+#X_test_dataset$real2.1 =
+print("lapply..")
+a <- lapply(X_test_dataset$Headline, test_function)  #str_detect("Trump", y_test_dataset$Label)
+print(a)
+print(typeof(a))
+
+#X_test_dataset$real_final <- a
+X_test <-cbind(w, id)
+print(X_test_dataset)
+
+df_results <- data.frame(a)
+print(df_results)
+
+X_test_dataset <- X_test_dataset %>% full_join(df_results)
+
+
+print(X_test_dataset)
+
+
+
+X_test_dataset$real2 = test_function(y_test_dataset$Label)
+print(X_test_dataset)
+
+
+print(X_test_dataset)
+
+
+
+```
+
+
+```{r}
+#Create a vector containing only the text
+#text <- data$text
+# Create a corpus  
+#docs <- Corpus(VectorSource(text))
+
+test_path <- "test.csv"
+train <-  read.csv(file = train_path, stringsAsFactors = FALSE)
+
+library(wordcloud)
+library(RColorBrewer)
+library(wordcloud2)
+
+# prepare data for visualization
+data_fake <- train[train$Label == "fake",]
+data_true <- train[train$Label == "credible",]
+tidy_text_fake <- unnest_tokens(data_fake, 'splitted', 'Body', token="words") %>% filter(!splitted %in% splitted_stop_words)
+tidy_text_true <- unnest_tokens(data_true, 'splitted', 'Body', token="words") %>% filter(!splitted %in% splitted_stop_words)
+fake <- tidy_text_fake %>% count(splitted,sort=TRUE)
+true <- tidy_text_true %>% count(splitted,sort=TRUE)
+new_data <- fake %>% full_join(true, by="splitted")
+new_data[is.na(new_data)] <- 0
+num_col = nrow(new_data)
+fake_sum <- sum(new_data$n.x)
+true_sum <- sum(new_data$n.y)
+new_data$prob_fake <- (new_data$n.x+1)/(num_col+fake_sum)
+new_data$prob_true <- (new_data$n.y+1)/(num_col+true_sum)
+fit_dataset <- new_data
+
+
+print(fit_dataset)
+graph_d <- fit_dataset
+colnames(graph_d)[1] <- 'word'
+graph_d$freq <- graph_d$n.x + graph_d$n.y
+graph_d <- graph_d %>% select(-(n.x:prob_true))
+print(graph_d)
+# option 1
+# - for all words we get
+wordcloud2(graph_d, color = "random-light", backgroundColor = "grey", widgetsize = c(1000,1000))
+# - only for fake words we get
+graph_d$freq <- fit_dataset$n.x
+print(graph_d)
+wordcloud2(graph_d, color = "random-light", backgroundColor = "grey", widgetsize = c(1000,1000))
+# - only for true words we get
+graph_d$freq <- fit_dataset$n.y
+print(graph_d)
+wordcloud2(graph_d, color = "random-light", backgroundColor = "grey", widgetsize = c(1000,1000))
+
+
+# option 2
+# as an example, for fake words we get
+set.seed(1000)
+wordcloud(words = fit_dataset$splitted, freq = fit_dataset$n.x, min.freq = 20, max.words=250, random.order=FALSE, rot.per=0.15, colors=brewer.pal(8, "Dark2"))
+
+
+
+```
+
+
+
+
+## Measure effectiveness of your classifier
+-   Note that accuracy is not always a good metric for your classifier.
+    Look at precision and recall curves, F1 score metric.
+-   Visualize them.
+-   Show failure cases.
+
+## Conclusions
+
+Summarize your work by explaining in a few sentences the points listed
+below.
+
+-   Describe the method implemented in general. Show what are
+    mathematical foundations you are basing your solution on.
+-   List pros and cons of the method. This should include the
+    limitations of your method, all the assumption you make about the
+    nature of your data etc.
